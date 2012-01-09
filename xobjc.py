@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 CHANGELOG:
 
-0.1 
+0.1
 - Initial release
 
 0.2 (2009-09-04)
@@ -46,11 +46,11 @@ CHANGELOG:
 - Now work also when no properties are defined
 - Prefix XPUBLIC also in Interface file to prepare for more intelligent
   handling of those marked methods in future
-- Removed unsexy whitesapce 
+- Removed unsexy whitesapce
 
 0.6 (2010-01-06)
 - Removed the prepending XPUBLIC from interface file because Interface
-  Builder was not able to handle it  
+  Builder was not able to handle it
 - IBAction methods are always considered public (I don't see a case where
   they are not
 - Static methods are also considered public
@@ -58,7 +58,7 @@ CHANGELOG:
 0.7 (2010-02-07)
 - Fix for Apple Script calls
 - Handle comment correctly
-- New FORCE_METHODS setting 
+- New FORCE_METHODS setting
 
 0.8 (2010-02-15)
 - Moved @synthesize to the end of files
@@ -95,13 +95,16 @@ CHANGELOG:
 - Added 'xobjc' marker into @property
 - 'XASSIGN BOOL xxx' creates corect 'isXxx' getter
 
+0.14
+- Re-packaged as a standalone class
+
 TODO:
 
 - Work with more implementations etc. in one file and match name
   => Currently just one implementation per file
-- NSCoder support 
+- NSCoder support
   => Create all needed stuff
-- XPRIVATE 
+- XPRIVATE
   => Put them into a category in the implementation file
 
 """
@@ -116,7 +119,7 @@ import pprint
 import datetime
 import subprocess
 
-### CONFIG BEGIN 
+### CONFIG BEGIN
 
 # !!! PLEASE CHANGE THE FOLLOWING TO YOU NEEDS !!!
 
@@ -129,17 +132,18 @@ import subprocess
 # All into one absolute path
 BACKUP_FOLDER = os.path.expandvars('${HOME}/work/_build/__xobjc_backup')
 DEBUG = 0
-FORCE_METHODS = True
-BOOL_WITH_IS_GETTER = False
+FORCE_METHODS = False #True
+BOOL_WITH_IS_GETTER = True
 STRIP_TRAILING_SPACES = True
-# NONATOMIC = ""
-NONATOMIC = "nonatomic, "
+NONATOMIC = ""
+# NONATOMIC = "nonatomic, "
+INDENTATION = "    "
 
-### CONFIG END 
+### CONFIG END
 
 rxInterface = re.compile("""
     .*?
-    @interface (?P<interface> .*?) 
+    @interface (?P<interface> .*?)
      \{
     (?P<varblock> .*? )
     \}
@@ -150,12 +154,12 @@ rxInterface = re.compile("""
 
 rxInterfaceCat = re.compile("""
     .*?
-    @interface 
-        (?P<interface> .*?) 
-        \( 
+    @interface
+        (?P<interface> .*?)
+        \(
             (?P<category> .*?)
-        \) 
-        
+        \)
+
     (?P<properties> .*?)
     @end
     .*?
@@ -172,7 +176,7 @@ rxDealloc = re.compile("""
         dealloc
         \s*
         \{
-        (?P<deallocbody> .*?)    
+        (?P<deallocbody> .*?)
         (\[\s*[^\s]+\s+x?release\s*\]\s*\;\s*)*
         \[\s*super\s+dealloc\s*\]\s*\;\s*
         \}
@@ -183,7 +187,7 @@ rxViewDidUnload = re.compile("""
         viewDidUnload
         \s*
         \{
-        (?P<viewdidunloadbody> [^\}]*?)        
+        (?P<viewdidunloadbody> [^\}]*?)
         \}
     """, re.VERBOSE | re.M | re.DOTALL)
 
@@ -197,59 +201,59 @@ rxVariables = re.compile("""
     (XCOPY | XASSIGN | XRETAIN  | XIBOUTLET | XDELEGATE | IBOutlet | XPROPERTY\(.*?\))
     \s+
     ([a-zA-Z0-9_][a-zA-Z0-9_\<\>]*)
-    ((        
+    ((
         (?:
-          \s*\* 
-          | 
+          \s*\*
+          |
           \s
         )
         \s*
         [a-zA-Z0-9_]+
         \s*
-        \,?            
+        \,?
         \s*
     )+)
     \;
     """, re.VERBOSE | re.M | re.DOTALL)
 
 rxProperty = re.compile("""
-    \@property  
-    
+    \@property
+
     \s*
-    
+
     (
-        \( 
+        \(
         .*?
         \)
     )?
-    
+
     \s*
-    
+
     ([a-zA-Z0-9_][a-zA-Z0-9_\<\>]*)
-    
+
     \s+
-    
-    ((        
+
+    ((
         \*?
         \s*
         [a-zA-Z0-9_]+
         \s*
-        \,?            
+        \,?
         \s*
     )+)
     \;
-    
+
 """, re.VERBOSE | re.M | re.DOTALL)
 
 rxSynthesize = re.compile("""
     \@synthesize
     \s+
-    \w+       
+    \w+
     \s*
     \=?
     \s*
     \w*
-    \;    
+    \;
     """, re.VERBOSE | re.M | re.DOTALL)
 
 rxLeadingUnderscore = re.compile("(\s*\*?\s*)_(.+)")
@@ -257,18 +261,18 @@ rxLeadingUnderscore = re.compile("(\s*\*?\s*)_(.+)")
 rxMethod = re.compile("""
     (?P<kind>
         (XPUBLIC)?
-    )  
+    )
     \s*
     (?P<name>
-        [\-\+] 
-        \s*    
+        [\-\+]
+        \s*
         \([^\)]+\)
         \s*
         [a-zA-Z_]
         [^\{\=]+?
-    ) 
-    \{ 
-        
+    )
+    \{
+
 """, re.VERBOSE | re.M | re.DOTALL)
 
 #rxInstance = re.compile("""
@@ -292,15 +296,15 @@ def mySorted(v, **k):
     # return sorted(v, **k)
 
 class Module:
-    
+
     def __init__(filename):
         self.base = filename[:filename.rfind(".")]
         self.h = self.base + '.h'
         self.m = self.baee = ".m"
 
 def stripComments(value):
-    #if DEBUG: 
-    #    for c in rxComment.findall(value): 
+    #if DEBUG:
+    #    for c in rxComment.findall(value):
     #        print c
     return rxComment.sub('', value)
 
@@ -311,54 +315,54 @@ def insertString(base, pos, new):
     return base[:pos] + new + base[pos:]
 
 def analyze(hdata, mdata):
-    
+
     ### HEADER
-        
+
     vars = dict()
-    
-    propBlock = []    
+
+    propBlock = []
     viewdidunload = []
-    dealloc = []       
-    block = []   
+    dealloc = []
+    block = []
     isCategory = 0
-    
-    interfaceMatch = rxInterface.match(hdata) 
+
+    interfaceMatch = rxInterface.match(hdata)
     if not interfaceMatch:
-        interfaceMatch = rxInterfaceCat.match(hdata)  
-        if not interfaceMatch:  
+        interfaceMatch = rxInterfaceCat.match(hdata)
+        if not interfaceMatch:
             return None, None
         else:
             isCategory = 1
-    
+
     if not isCategory:
-        varblock = interfaceMatch.group("varblock")    
+        varblock = interfaceMatch.group("varblock")
         varblock = stripComments(varblock.strip())
-    
+
         # Collect variable definitions
-        for mv in rxVariables.finditer(varblock):                        
+        for mv in rxVariables.finditer(varblock):
             mode, type_, names, names_ = mv.groups()
             for vname in extractVariables(names):
-                vars[''.join(vname.split())] = (mode.lower(), type_, mode)    
-    
-    # Remove @properties completely from interface 
-    properties = interfaceMatch.group("properties")    
-    
+                vars[''.join(vname.split())] = (mode.lower(), type_, mode)
+
+    # Remove @properties completely from interface
+    properties = interfaceMatch.group("properties")
+
     if isCategory:
-        for mpp in rxProperty.finditer(properties):   
-            propBlock.append(mpp.group(0))                     
-                    
+        for mpp in rxProperty.finditer(properties):
+            propBlock.append(mpp.group(0))
+
     if not isCategory:
         properties = rxProperty.sub('', properties).lstrip()
-        
+
         # Create @properties
         for vname in mySorted(vars.keys(), key=lambda k:k.strip('*').strip('_')):
             mode, type_, origMode = vars[vname]
-        
+
             iboutlet = 0
             star = '*' if vname.startswith('*') else ''
             name = vname.lstrip('*') # Withoout leading *
             pvname = name # Without underscore
-        
+
             # Google compatible synthesize
             if name.endswith('_'):
                 pvname = name[:-1]
@@ -368,7 +372,7 @@ def analyze(hdata, mdata):
                 block.append("@synthesize %s = %s;" % (pvname, name))
             else:
                 block.append("@synthesize %s;" % (name))
-            
+
             # Properties
             propMarker = "xobjc "
             if mode == 'iboutlet':
@@ -398,142 +402,138 @@ def analyze(hdata, mdata):
                 if BOOL_WITH_IS_GETTER and type_ == "BOOL":
                     mode = "getter=is%s%s" % (pvname[0].capitalize(), pvname[1:])
                 propBlock.append("@property (%s%s%s) %s %s%s;" % (propMarker, NONATOMIC, mode, type_, star, pvname))
-        
-            # print mode 
-        
+
+            # print mode
+
             # Release stuff
             if mode in ('retain', 'copy'):
-                dealloc.append("\t[%s xrelease];" % name)
+                dealloc.append(INDENTATION + "[%s xrelease];" % name)
 
             if iboutlet:
-                viewdidunload.append("\tself.%s = xnil;" % pvname)
+                viewdidunload.append(INDENTATION + "self.%s = xnil;" % pvname)
 
         # print viewdidunload
-    
-    propBlock = "\n".join(propBlock)        
-             
+
+    propBlock = "\n".join(propBlock)
+
     ### MODULE
 
-    # Find implementation blinterfaceMatch       
-    implementationMatch = rxImplementation.match(mdata)    
+    # Find implementation blinterfaceMatch
+    implementationMatch = rxImplementation.match(mdata)
     impName = implementationMatch.group('name')
-        
+
     #if DEBUG and implementationMatch:
     #    print "Implementation", implementationMatch.groups()
-        
-    # Replace @synthesize block 
+
+    # Replace @synthesize block
     body = implementationMatch.group("body")
 
-    if not isCategory:    
+    if not isCategory:
         body = rxSynthesize.sub('', body).strip()
         block = "\n".join(block) + '\n\n'
-            
+
         # Update 'dealloc'
         md = rxDealloc.search(body)
         if md:
-            # deallocbody = rxRelease.sub('', md.group("deallocbody")).strip()     
-            deallocbody = md.group("deallocbody").strip()     
+            # deallocbody = rxRelease.sub('', md.group("deallocbody")).strip()
+            deallocbody = md.group("deallocbody").strip()
             if deallocbody:
-                deallocbody = "\t" + deallocbody + "\n\n"
-            newdealloc = ("- (void)dealloc {"
+                deallocbody = INDENTATION + deallocbody + "\n\n"
+            newdealloc = ("- (void)dealloc { "
                 + ("\n" + deallocbody).rstrip()
                 + ("\n" + "\n".join(mySorted(dealloc))).rstrip()
-                + "\n\t[super dealloc];\n}")
+                + "\n" + INDENTATION + "[super dealloc];\n}")
             body = rxDealloc.sub(newdealloc, body)
         else:
-            newdealloc = "- (void)dealloc {\n" + "\n".join(mySorted(dealloc)) + "\n\t[super dealloc];\n}" 
-            body += "\n\n" + newdealloc  
+            newdealloc = "- (void)dealloc {\n" + "\n".join(mySorted(dealloc)) + "\n" + INDENTATION + "[super dealloc];\n}"
+            body += "\n\n" + newdealloc
 
         # Update 'viewDidUnload' (iPhone and iPad only)
         md = rxViewDidUnload.search(body)
         if md:
-            viewdidunloadbody = rxViewDidUnloadBody.sub('', md.group("viewdidunloadbody")).strip()     
+            viewdidunloadbody = rxViewDidUnloadBody.sub('', md.group("viewdidunloadbody")).strip()
             if viewdidunloadbody:
-                viewdidunloadbody = "\n    " + viewdidunloadbody + "\n\n"
+                viewdidunloadbody = "\n" + INDENTATION + viewdidunloadbody + "\n\n"
             newviewdidunloadbody = (
-                "- (void)viewDidUnload {\n\t[super viewDidUnload];\n" 
-                + ("\t" + viewdidunloadbody.strip()).rstrip() 
-                + ("\n" + "\n".join(mySorted(viewdidunload))).rstrip() 
+                "- (void)viewDidUnload {\n" + INDENTATION + "[super viewDidUnload];\n"
+                + (INDENTATION + viewdidunloadbody.strip()).rstrip()
+                + ("\n" + "\n".join(mySorted(viewdidunload))).rstrip()
                 + "\n}")
             body = rxViewDidUnload.sub(newviewdidunloadbody, body)
-          
+
     ### METHODS
-    mDefs = []      
-    mPrivateDefs = []      
-    xpub = 0  
+    mDefs = []
+    xpub = 0
     bodyStripped = stripComments(body)
 
     for mMethod in rxMethod.finditer(bodyStripped):
         mName = mMethod.group('name').strip()
-        print mName
-    # if mMethod.group("comment"):
+        # if mMethod.group("comment"):
         #    mName = "\n" + mMethod.group("comment").strip() + "\n" + mName
-        #if DEBUG: 
+        #if DEBUG:
         #    print mName, mMethod.groups()
         if (mMethod.group('kind') == 'XPUBLIC'):
             xpub += 1
             mDefs.append(mName + ';')
-        elif mName.startswith("+") or mName.lstrip('-').lstrip().startswith("(IBAction)"):            
+        elif mName.startswith("+") or mName.lstrip('-').lstrip().startswith("(IBAction)"):
             mDefs.append(mName + ';')
         elif rxInitMethod.match(mName):
-            mDefs.append(mName + ';')        
-        else:
-            mPrivateDefs.append(mName + ';')
-    print "\n".join(mPrivateDefs)
+            mDefs.append(mName + ';')
+
     ### XINSTANCE
     #mdi = rxInstance.search(bodyStripped)
     #if mdi:
     #    xpub += 1
     #    mDefs.append("+ (id)instance;")
-    
+
     # If no XPUBLIC was defined don't replace old stuff
     if mDefs or FORCE_METHODS:
         # mDefs = "\n".join(mySorted(mDefs)) + '\n\n'
         mDefs = "\n".join(mDefs) + '\n\n'
     else:
-        mDefs = properties       
-          
+        mDefs = properties
+
     ### RESULT
-   
+
     if isCategory:
 
-        hdata = (hdata[:interfaceMatch.start("properties")] 
-            + ('\n\n' + propBlock).rstrip()             
-            + ('\n\n' + mDefs).rstrip()  
+        hdata = (hdata[:interfaceMatch.start("properties")]
+            + ('\n\n' + propBlock).rstrip()
+            + ('\n\n' + mDefs).rstrip()
             + '\n\n' + hdata[interfaceMatch.end("properties"):])
-                
+
     else:
-        
-        hdata = (hdata[:interfaceMatch.start("properties")] 
-            + ('\n\n' + mDefs).rstrip()  
-            + ('\n\n' + propBlock).rstrip()             
+
+        hdata = (hdata[:interfaceMatch.start("properties")]
+            + ('\n\n' + mDefs).rstrip()
+            + ('\n\n' + propBlock).rstrip()
             + '\n\n' + hdata[interfaceMatch.end("properties"):])
-        
-        mdata = (mdata[:implementationMatch.start('body')] 
-            + ('\n\n' + body).rstrip() 
-            + ('\n\n' + block).rstrip() 
-            + '\n\n' + mdata[implementationMatch.end('body'):]) 
+
+        mdata = (mdata[:implementationMatch.start('body')]
+            + ('\n\n' + body).rstrip()
+            + ('\n\n' + block).rstrip()
+            + '\n\n' + mdata[implementationMatch.end('body'):])
 
     # Did something change?
     if xpub or propBlock:
         return hdata, mdata
-        
+
     return None, None
 
 def modifyFiles(filename):
-    
+
     # Calculate basic filenames
     base = os.path.normpath(os.path.abspath(filename))
     folder = os.path.dirname(base)
     filePart = os.path.basename(base)
-    
+
     if filePart == "main.m":
         # print "File %r will not be modified" % filePart
         return False
-        
+
     hfile = filename[:filename.rfind(".")] + '.h'
     mfile = filename[:filename.rfind(".")] + '.m'
-    
+
     # Check if files exist
     if not os.path.isfile(hfile):
         # print "File %r does not exist" % hfile
@@ -543,10 +543,10 @@ def modifyFiles(filename):
         mfile = filename[:filename.rfind(".")] + '.mm'
         if not os.path.isfile(mfile):
             return False
-    
+
     htime = os.stat(hfile).st_mtime
     mtime = os.stat(mfile).st_mtime
-    
+
     if htime == mtime:
         # print "No update needed"
         return False
@@ -558,19 +558,19 @@ def modifyFiles(filename):
         # print "File ignored"
         return False
 
-    # Handle and modify files    
+    # Handle and modify files
     hdata, mdata = analyze(
         hsrc,
-        msrc)   
-             
+        msrc)
+
     if not (hdata and mdata):
         return False
-        
+
     # Backup files
     if BACKUP_FOLDER:
         backupFolder = os.path.join(
-            folder, 
-            BACKUP_FOLDER, 
+            folder,
+            BACKUP_FOLDER,
             'backup-' + datetime.datetime.today().strftime("%Y%m%d-%H%M%S"))
         if not os.path.isdir(backupFolder):
             os.makedirs(backupFolder)
@@ -582,8 +582,8 @@ def modifyFiles(filename):
     if STRIP_TRAILING_SPACES:
         hdata = "\n".join([l.rstrip() for l in hdata.splitlines()])
         mdata = "\n".join([l.rstrip() for l in mdata.splitlines()])
-    
-    if DEBUG:        
+
+    if DEBUG:
         print "=" * 80
         print hfile
         print "=" * 80
@@ -592,28 +592,28 @@ def modifyFiles(filename):
         print mfile
         print "=" * 80
         print mdata
-    
+
     if not DEBUG:
         f = open(hfile, 'w')
         f.write(hdata)
         f.close()
-    
+
         f = open(mfile, 'w')
         f.write(mdata)
         f.close()
-    
+
         # Same file time
         subprocess.call(['touch', hfile, mfile])
-    
+
     #print "Modified %r" % hfile
     #print "Modified %r" % mfile
-    
+
     return True
-    
+
 def xcodeReload():
     # Trick to reload files in XCode
-    # Bug workaround for SL, see http://kb2.adobe.com/cps/516/cpsid_51615.html    
-    # print "XCode refresh" 
+    # Bug workaround for SL, see http://kb2.adobe.com/cps/516/cpsid_51615.html
+    # print "XCode refresh"
     # subprocess.call(['arch', '-i386', 'osascript', '-e', 'activate application "Finder"\nactivate application "XCode"'])
     pass
 
@@ -623,7 +623,7 @@ def callAppleScript(script, input=None):
         return subprocess.check_output(
             ['osascript', '-e', script],
             stderr=subprocess.STDOUT)
-            
+
     p = subprocess.Popen(['osascript', '-e', script], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
     p.stdin.write(input)
     ret = p.communicate()[0]
@@ -631,71 +631,70 @@ def callAppleScript(script, input=None):
     return ret
 
 def callGrowl(msg):
-    #callAppleScript("""
-    #    tell application "GrowlHelperApp"
-    #    	set the allNotificationsList to {"XObjC"}
-    #    	set the enabledNotificationsList to {"XObjC"}
-    #    	register as application "XObjC" all notifications allNotificationsList default notifications #enabledNotificationsList icon of application "XCode"
-    #    	notify with name "XObjC" title "XCode" description "%s" application name "XObjC"
-    #    end tell
-    #    """ % repr(msg)[1:-1])
-    pass
+    callAppleScript("""
+        tell application "GrowlHelperApp"
+        	set the allNotificationsList to {"XObjC"}
+        	set the enabledNotificationsList to {"XObjC"}
+        	register as application "XObjC" all notifications allNotificationsList default notifications enabledNotificationsList icon of application "XCode"
+        	notify with name "XObjC" title "XCode" description "%s" application name "XObjC"
+        end tell
+        """ % repr(msg)[1:-1])
 
 OUT = []
 
 def out(*a):
     OUT.append(" ".join([str(v) for v in a]))
-    
+
 def main():
     filenames = callAppleScript("""
         tell application id "com.apple.dt.Xcode"
             return path of source documents
         end tell
         """)
-        
+
     if not filenames:
         print "Nothing to do"
-    
+
     filenames = [n.strip() for n in filenames.split(',')]
-    
+
     modified = False
-    for filename in filenames: 
-    
+    for filename in filenames:
+
         filename = os.path.abspath(filename)
         # print "Analyze %s" % filename
-        
-        mfiles = [filename] 
-        
+
+        mfiles = [filename]
+
         # XXX Obsolete?
-        if os.path.isdir(filename):            
+        if os.path.isdir(filename):
             for root, dirs, files in os.walk(filename):
                 for name in files:
-                    if (BACKUP_FOLDER not in root) and name.endswith(".m"):                        
+                    if (BACKUP_FOLDER not in root) and name.endswith(".m"):
                         mfiles.append(os.path.join(root, name))
-    
+
         # print "FILES:"
         # print "\n".join(mfiles)
-        
+
         # elif srcroot:
         #   files = glob.glob("Classes/*.m")
 
         if mfiles:
-           
+
             for fn in mfiles:
                 if modifyFiles(fn):
                     out("Modified: %s" % os.path.basename(fn))
                     modified = True
-    
+
     if modified:
         # xcodeReload()
         pass
     else:
         out("No modifications needed")
-    
+
     s = '\n'.join(OUT)
     if s:
         print s
         callGrowl(s)
-    
+
 if __name__ == "__main__":
     main()
