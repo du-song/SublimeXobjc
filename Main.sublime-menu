@@ -1,0 +1,17 @@
+[
+	{
+		"caption": "Tools",
+		"mnemonic": "T",
+		"id": "tools",
+		"children":
+		[
+			{
+				"caption": "Objective-C",
+				"children":
+				[
+					{ "command": "xobjc", "caption": "Generate code for properties" }
+				]
+			}
+		]
+	}
+]
